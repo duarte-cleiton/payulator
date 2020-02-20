@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "payulator"
+version = "0.1.0"
+description = "A Python loan calculator"
+authors = ["duarte-cleiton <duarte.cleiton@outlook.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+pandas = "^0.24"
+voluptuous = "^0.11"
+dataclasses = "^0.6"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+jupyter = "^1.0"
+black = "=19.3b0"
+pre-commit = "^1"
+publish_sphinx_docs = "^1.0"
+sphinx = "^1.8"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
