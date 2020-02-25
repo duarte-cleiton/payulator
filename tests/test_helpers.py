@@ -32,3 +32,10 @@ def test_freq_to_num():
         # Test on invalid freq name
         with pytest.raises(ValueError):
             freq_to_num("bingo", allow_cts=allow_cts)
+
+
+def test_to_date_offset():
+    for k in [1, 2, 3, 4, 6, 12, 26, 52, 365]:
+        assert isinstance(to_date_offset(k), pd.DateOffset)
+
+    assert to_date_offset(10) is None

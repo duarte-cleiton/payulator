@@ -36,3 +36,28 @@ def freq_to_num(freq: str, *, allow_cts: bool = False) -> Union[int, float]:
         raise ValueError(
             f"Invalid frequency {freq}. " f"Frequency must be on of {d.keys()}"
         )
+
+
+def to_date_offset(num_per_year: int) -> Union[pd.DateOffset, None]:
+    """
+    Convert the given number of occurrences per year to its
+    corresponding period (Pandas DateOffset object)
+
+    Arguments:
+        num_per_year {int} -- Number of occurrences per year | valid values [1, 2, 3, 4, 6, 12, 26, 52, 365]
+
+    Returns:
+        Union[pd.DateOffset, None] -- Pandas DateOffset Object or None if invalid period
+    """
+    k = num_per_year
+    if k in [1, 2, 3, 4, 6, 12]:
+        d = pd.DateOffset(months=12 // k)
+    elif k == 26:
+        d = pd.DateOffset(weeks=2)
+    elif k == 52:
+        d = pd.DateOffset(weeks=1)
+    elif k == 365:
+        d = pd.DateOffset(days=1)
+    else:
+        d = None
+    return d
