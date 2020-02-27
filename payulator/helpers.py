@@ -167,6 +167,48 @@ def summarize_amortized_loan(
     decimals: int = 2
 ) -> Dict:
 
+    """
+    Amortize a loan with the given paramenters according to the function
+    :func: `amortize`, and return a dictionary with the following keys
+    and values
+
+    Returns:
+
+    - ``"payment_schedule"``: DataFrame; schedule of loan payments
+      broken into principal payments and interest payments
+    - ``"periodic_payment"``: periodic payment amount according to
+      amortization
+    - ``"interest_total"``: total interest paid on loan
+    - ``"interest_and_fee_total"``: interest_total plus loan fee
+    - ``"payment_total"``: total of all loan payments, including the
+      loan fee
+    - ``"interest_and_fee_total/principal``
+    - ``"first_payment_date"`` (optional): first payment date (as as YYYY-MM-DD) string if one is given
+    - ``"last_payment_date"`` (optional): last payment date (as as YYYY-MM-DD) string if a first payment date is given    
+
+
+    If a first payment date is given (YYYY-MM-DD string), then include payment
+    dates in the payment schedule.
+    Round all values to the given number of decimal places, but do not round if
+    ``decimals is None``.
+
+    The payment schedule DataFrame has the comlumns:
+
+    - ``"payment_sequence"``: integer
+    - ``"payment_date"``: (optional) YYYY-MM-DD date string if ``first_payment_date``
+      is given
+    - ``"beginning_balance"``: float; balance on the payment date before the principal
+      payment is made
+    - ``"principal_payment"``: float; principal payment made on payment date
+    - ``"ending_balance"``: float; balance on the payment date after the principal
+      payment is made
+    - ``"interest_payment"``: float; interest payment made on payment date
+    - ``"fee_payment"``: float; fee payment made on payment date; equals the fee on
+      the first payment date and 0 elsewhere
+    - ``"notes"``: NaN
+
+    """
+
     A = amortize(principal, interest_rate, compounding_freq, payment_freq, num_payments)
     p = build_principal_fn(
         principal, interest_rate, compounding_freq, payment_freq, num_payments
@@ -218,4 +260,64 @@ def summarize_amortized_loan(
                 d[key] = val.round(decimals)
             elif isinstance(val, float):
                 d[key] = round(val, 2)
+    return d
+
+
+def summarize_interest_only_loan(
+    principal: float,
+    interest_rate: float,
+    payment_freq: str,
+    num_payments: int,
+    fee: float = 0,
+    first_payment_date: Optional[str] = None,
+    decimals: int = 2
+) -> Dict:
+
+    k= freq_to_num(payment_freq)
+    A = principal * interest_rate / k
+    n = num_payments
+    f = (
+        pd.DataFrame({"payment_sequence": range(1, n + 1)})
+        .assign(beginning_balance=principal)
+        .assign(principal_payment=0)
+        .assign(ending_balance=principal)
+        .assign(interest_payment=A)
+        .assign(fee_payment=0)
+        .assign(notes=np.nan)
+    )
+    f.principal_payment.iat[-1] = principal
+    f.ending_balance.iat[-1] = 0
+    f.fee_payment.iat[0] = fee
+
+    date_offset = to_date_offset(k)
+    if first_payment_date and date_offset:
+        f["payment_date"] = [
+            pd.Timestamp(first_payment_date) + j * date_offset for j in range(n)
+        ]
+    
+    # Put payment date first
+    cols = f.columns.tolist()
+    cols.remove("payment_date")
+    cols.insert(1, "payment_date")
+    f = f[cols].copy()
+
+    # Bundle result into dictionary
+    d = {}
+    d["payment_schedule"] = f
+    d["periodic_payment"] = A
+    d["interest_total"] = f["interest_payment"].sum()
+    d["interest_and_fee_total"] = d["interest_total"] + fee
+    d["payment_total"] = d["interest_and_fee_total"] + principal
+    d["interest_and_fee_total/principal"] = d["interest_and_fee_total"] / principal
+    if "payment_date" in f:
+        d["first_payment_date"] = f.payment_date.iat[0].strftime("%Y-%m-%d")
+        d["last_payment_date"] = f.payment_date.iat[-1].strftime("%Y-%m-%d")
+
+    if decimals is not None:
+        for key, val in d.items():
+            if isinstance(val, pd.DataFrame):
+                d[key] = val.round(decimals)
+            elif isinstance(val, float):
+                d[key] = round(val, 2)
+
     return d
