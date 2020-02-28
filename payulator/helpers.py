@@ -321,3 +321,88 @@ def summarize_interest_only_loan(
                 d[key] = round(val, 2)
 
     return d
+
+def aggregate_payment_schedules(
+    payment_schedules: List[DataFrame],
+    start_date: str = None,
+    end_date: str = None,
+    freq: str = None
+) -> DataFrame:
+
+    """
+    Given a list of payment schedules in the form output by the
+    function :func: `summarize_amortized_loan` do the following.
+    Concatenate the payment schedules.
+    If all the schedules have a payment date column, then slice
+    to the given start date and end date (inclusive), group by
+    payment date, and resample at the given Pandas frequency
+    (not a frequency in :const:`NUM_BY_FREQ`) by summing.
+    Otherwise, group by payment sequence and sum.
+    
+    Raises:
+        ValueError: If no payment schedules are provided
+    
+    Returns:
+        Resulting DataFrame with the columns
+            - ``"payment_date"``: (optional) Numpy Datetime object; present only if
+            all given payment schedules have a payment_date column
+            - ``"payment_sequence"``: (optional) integer; present only if not all the given
+            payment schedules have a payment_date column
+            - ``"principal_payment"``
+            - ``"interest_payment"``
+            - ``"fee_payment"``
+            - ``"total_payment"``: sum of principal_payment, interest_payment, and fee_payment
+            - ``"principal_payment_cumsum"``: cumulative sum of principal_payment
+            - ``"interest_payment_cumsum"``: cumulative sum of interest_payment
+            - ``"fee_payment_cumsum"``: cumulative sum of fee_payment
+    """
+
+    if not payment_schedules:
+        raise ValueError("No payment schedules given to aggregate"
+    )
+
+    if all(["payment_date" in f.columns for f in payment_schedules]):
+        # Group by payment date
+        g = (
+            pd.concat(payment_schedules)
+            .filter(
+                ["payment_date", "principal_payment", "interest_payment", "fee_payment"]
+            )
+            # Slice
+            .set_index("payment_date")
+            .loc[start_date:end_date]
+            .reset_index()
+            .groupby(pd.Grouper(key="payment_date", freq=freq))
+            .sum()
+            .sort_index()
+            .reset_index()
+        )
+    else:
+        # Group by payment sequence
+        g = (
+            pd.concat(payment_schedules)
+            .filter(
+                [
+                    "payment_sequence",
+                    "principal_payment",
+                    "interest_payment",
+                    "fee_payment",
+                ]
+            )
+            .groupby("payment_sequence")
+            .sum()
+            .sort_index()
+            .reset_index()
+        )
+
+    return (
+        g.assign(
+            total_payment=lambda x: (
+                x.principal_payment + x.interest_payment + x.fee_payment
+            )
+        )
+        .assign(principal_payment_cumsum=lambda x: x.principal_payment.cumsum())
+        .assign(interest_payment_cumsum=lambda x: x.interest_payment.cumsum())
+        .assign(fee_payment_cumsum=lambda x: x.fee_payment.cumsum())
+        .assign(total_payment_cumsum=lambda x: x.total_payment.cumsum())
+    )

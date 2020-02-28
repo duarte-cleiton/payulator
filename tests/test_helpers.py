@@ -146,3 +146,40 @@ def test_summarize_interest_only_loan():
     assert (f["interest_payment"] == 1).all()
     assert (f["principal_payment"].iloc[:-1] == 0).all()
     assert f["principal_payment"].iat[-1] == 100
+
+def test_aggregate_payment_schedules():
+    for first_payment_date, agg_key in [
+        (None, "payment_sequence"),
+        ("2018-01-01", "payment_date")
+    ]:
+        A = summarize_amortized_loan(
+            1000,
+            0.05,
+            "quarterly",
+            "monthly",
+            3 * 12,
+            fee=10,
+            first_payment_date=first_payment_date
+        )
+
+        B = summarize_amortized_loan(
+            1000,
+            0.05,
+            "quarterly",
+            "monthly",
+            3 * 12,
+            fee=10,
+            first_payment_date=first_payment_date,
+        )
+        f = aggregate_payment_schedules([A["payment_schedule"], B["payment_schedule"]])
+        assert set(f.columns) == {
+            agg_key,
+            "interest_payment",
+            "principal_payment",
+            "fee_payment",
+            "total_payment",
+            "interest_payment_cumsum",
+            "principal_payment_cumsum",
+            "fee_payment_cumsum",
+            "total_payment_cumsum",
+        }
