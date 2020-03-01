@@ -295,11 +295,11 @@ def summarize_interest_only_loan(
             pd.Timestamp(first_payment_date) + j * date_offset for j in range(n)
         ]
     
-    # Put payment date first
-    cols = f.columns.tolist()
-    cols.remove("payment_date")
-    cols.insert(1, "payment_date")
-    f = f[cols].copy()
+        # Put payment date first
+        cols = f.columns.tolist()
+        cols.remove("payment_date")
+        cols.insert(1, "payment_date")
+        f = f[cols].copy()
 
     # Bundle result into dictionary
     d = {}
